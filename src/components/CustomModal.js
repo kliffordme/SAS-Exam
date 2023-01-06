@@ -1,33 +1,38 @@
-import "./App.css";
+import React, { useMemo, useState } from "react";
+import Modal from "react-modal";
 import axios from "axios";
-import { useEffect, useState } from "react";
-import Users from "./components/Users";
-import CustomModal from "./components/CustomModal";
 
-function App() {
-  const [users, setUsers] = useState([]);
+const customStyles = {
+  content: {
+    top: "50%",
+    left: "50%",
+    right: "auto",
+    bottom: "auto",
+    marginRight: "-50%",
+    transform: "translate(-50%, -50%)",
+  },
+};
+
+const CustomModal = ({
+  setOpenInput,
+  openInput,
+  editedUser,
+  getData,
+  openOptions,
+}) => {
   const [formData, setFormData] = useState({});
-  const [openForm, setOpenForm] = useState(false);
-  const [openInput, setOpenInput] = useState(false);
-  const [editedUser, setEditedUser] = useState();
-  const [openOptions, setOpenOptions] = useState(true);
 
-  const getData = async () => {
-    try {
-      const res = await axios({
-        method: "GET",
-        url: `${process.env.REACT_APP_SAS_ALL_USERS_PATH}`,
+  useMemo(() => {
+    if (editedUser) {
+      setFormData({
+        name: editedUser[0]?.name,
+        age: editedUser[0]?.age,
+        email: editedUser[0]?.email,
+        mobile_number: editedUser[0]?.mobile_number,
+        address: editedUser[0]?.address,
       });
-
-      if (!res) {
-        return;
-      }
-
-      setUsers(res.data);
-    } catch (error) {
-      console.log(error);
     }
-  };
+  }, [editedUser]);
 
   const formHandler = (key, value) => {
     setFormData({
@@ -36,18 +41,16 @@ function App() {
     });
   };
 
-  useEffect(() => {
-    getData();
-  }, []);
-
-  const clickButton = async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
+
     try {
       const res = await axios({
-        method: "POST",
-        url: `${process.env.REACT_APP_SAS_POST_USER_PATH}`,
+        method: "PATCH",
+        url: `${process.env.REACT_APP_SAS_UPDATE_USER_PATH}/${editedUser[0]?.user_id}`,
         data: formData,
       });
+      console.log(res);
 
       setFormData({
         name: "",
@@ -56,55 +59,53 @@ function App() {
         mobile_number: "",
         address: "",
       });
+
+      setOpenInput(false);
       getData();
-
-      setOpenForm(!openForm);
-
-      console.log(res);
     } catch (error) {
       console.log(error);
     }
   };
 
-  const openModal = (id) => {
-    console.log(id);
-    const data = users.filter((user) => user.user_id === id);
-    console.log(data);
-    setEditedUser(data);
-    setOpenOptions(true);
-    setOpenInput(true);
-  };
+  const onDelete = async () => {
+    console.log(editedUser[0].user_id);
+    try {
+      const res = await axios({
+        method: "DELETE",
+        url: `${process.env.REACT_APP_SAS_DELETE_USER_PATH}/${editedUser[0]?.user_id}`,
+        data: formData,
+      });
+      console.log(res);
 
-  const openDeleteModal = (id) => {
-    const data = users.filter((user) => user.user_id === id);
-    setEditedUser(data);
-    setOpenInput(true);
-    setOpenOptions(false);
+      setOpenInput(false);
+      getData();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   return (
-    <div
-      className="flex justify-center"
-      style={{ width: "100vw", height: "100%" }}
-    >
-      {openForm ? (
-        <div style={{ width: "35%" }} className="pt-16 pr-10">
-          <form class="w-full max-w-lg" onSubmit={clickButton}>
-            <div class="flex flex-wrap -mx-3 mb-6">
-              <div
-                class="w-full md:w-1/2 px-3 mb-6 md:mb-0"
-                style={{ width: "100%" }}
-              >
+    <div>
+      <Modal
+        isOpen={openInput}
+        onRequestClose={() => setOpenInput(false)}
+        ariaHideApp={false}
+        style={customStyles}
+        contentLabel="Example Modal"
+      >
+        {openOptions ? (
+          <form
+            class="w-full max-w-lg"
+            onSubmit={onSubmit}
+            style={{ width: "30vw", height: "50vh" }}
+          >
+            <div>
+              <div class="w-full  px-3 mb-6 md:mb-0">
                 <label
                   class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2"
                   for="grid-first-name"
-                  style={{
-                    fontWeight: "700",
-                    fontSize: "20px",
-                    fontHeight: "18.5px",
-                  }}
                 >
-                  Add User
+                  Edit User
                 </label>
                 <input
                   class="appearance-none block w-full text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
@@ -148,12 +149,12 @@ function App() {
                 />
                 <button
                   type="submit"
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  className="mt-8 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
                 >
-                  Add User
+                  Edit User
                 </button>
                 <button
-                  onClick={() => setOpenForm(!openForm)}
+                  onClick={() => setOpenInput(false)}
                   style={{
                     color: "rgb(63 131 248 / 0.5)",
                     border: "1px solid rgb(63 131 248 / 0.5)",
@@ -165,44 +166,34 @@ function App() {
               </div>
             </div>
           </form>
-        </div>
-      ) : (
-        <div style={{ width: "35%" }} className="pt-14">
-          <div className="pb-5">
-            <span
-              style={{
-                fontWeight: "700",
-                fontSize: "24px",
-                fontHeight: "18.5px",
-              }}
-            >
-              Welcome! You can add user(s) here:
-            </span>
+        ) : (
+          <div style={{ width: "30vw", height: "20vh" }}>
+            <div className="flex justify-center pt-10">
+              Are you sure you want to delete this user?
+            </div>
+            <div className="flex justify-center">
+              <div>
+                <button
+                  onClick={() => setOpenInput(false)}
+                  className="mt-5 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded"
+                >
+                  NO
+                </button>
+              </div>
+              <div>
+                <button
+                  onClick={() => onDelete()}
+                  className="mt-5 ml-5 bg-red-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                >
+                  DELETE
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => setOpenForm(!openForm)}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Add User
-          </button>
-        </div>
-      )}
-      <Users
-        users={users}
-        openModal={openModal}
-        openDeleteModal={openDeleteModal}
-      />
-      <CustomModal
-        setOpenInput={setOpenInput}
-        openInput={openInput}
-        users={users}
-        editedUser={editedUser}
-        getData={getData}
-        openOptions={openOptions}
-        setOpenOptions={setOpenOptions}
-      />
+        )}
+      </Modal>
     </div>
   );
-}
+};
 
-export default App;
+export default CustomModal;
